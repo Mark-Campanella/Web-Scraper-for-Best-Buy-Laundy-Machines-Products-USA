@@ -26,7 +26,6 @@ stealth(driver,
         fix_hairline=True)
 
 #-----------------------------------------------------Personalization Variables---------------------------------------------------------------------#
-
 url = "https://www.bestbuy.com/?intl=nosplash"
 class_search_bar = "search-input"
 search_for = "washer & dryer"
@@ -42,6 +41,8 @@ next_page = None
 links = []
 products_data = []
 
+
+#----------------------------------------------------------------Functions-------------------------------------------------------------------------#
 def scrape_page(driver):
     '''
     This function gets the link of each object of each page in the 'keywords' pages.
@@ -73,7 +74,8 @@ def scrape_page(driver):
             next_page = None
             print("No next page found.")
     except Exception as e: print("Error!! ",e)
-    
+
+#---------------------------------------------------------------------------Begining---------------------------------------------------------------------#    
 try:        
     driver.get(url)
     driver.implicitly_wait(20)  # Wait for it to load
