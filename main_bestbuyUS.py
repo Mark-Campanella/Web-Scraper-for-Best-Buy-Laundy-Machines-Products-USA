@@ -6,7 +6,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium_stealth import stealth
 import pandas as pd
-
+import os
 #-------------------------------------------------------Driver CONFIGURATION-------------------------------------------------------------------------#
 chrome_options = Options()
 chrome_options.add_argument("--start-maximized")
@@ -34,7 +34,8 @@ class_search_button = "header-search-button"
 class_items = "sku-item"
 class_next_button = "sku-list-page-next"
 
-class_name = "Name"
+class_show_full_specs = "c-button.c-button-outline.c-button-md.show-full-specs-btn.col-xs-6"
+class_name = "body-copy-lg.v-fw-regular"
 
 # Global Variables
 next_page = None
@@ -75,6 +76,46 @@ def scrape_page(driver):
             print("No next page found.")
     except Exception as e: print("Error!! ",e)
 
+def process_product(driver:webdriver, link:str):
+    '''
+    For each object whose link was copied in the product_link:
+    →it will fetch some informations
+    →process a dictionary if this informations
+    →append in the list of the dictionaries that contains all machines
+    
+    For all of them, we are trying to get, if not found, leave it blank, because there are lots of differences between each object
+    
+    Parameters:
+        -driver: webdriver
+        -link: str
+    '''
+    global products_data
+    driver.get(link) #Go to the object's page
+    driver.implicitly_wait(20) #Wait the page to load
+    try:
+        WebDriverWait(driver,).until(
+            EC.presence_of_element_located((By.CLASS_NAME,class_show_full_specs))).click()
+    except:
+        return
+
+    product_info = {'Link': link} #append it's link in the dictionary
+
+    try:
+        name = driver.find_element(By.CLASS_NAME, class_name).text 
+        product_info['Name'] = name #append it's name in the dictionary      
+    except: product_info['Name'] = ""
+    
+    products_data.append(product_info)#Add item in the list of items
+
+def process_products(driver:webdriver):
+    '''
+        Iterates for each link, in the end let go of the list of links
+    '''
+    global links
+    for link in links: process_product(driver, link)
+
+    links.clear()
+
 #---------------------------------------------------------------------------Begining---------------------------------------------------------------------#    
 try:        
     driver.get(url)
@@ -92,7 +133,7 @@ try:
     
     driver.implicitly_wait(20)  # Wait for it to load
     try:
-        links = pd.read_csv("product_data.csv")
+        links = pd.read_csv("product_links.csv")
         links = links["Product Links"].to_list()    
     except:
         while True:
@@ -106,14 +147,20 @@ try:
 
             else: 
                 break
-            
-
-    
+        
 except Exception as e:
     print("Not able to run the code, error: ", e)
 
-finally:
-    driver.quit()
-    print("Links found:", links)
+    
+if not os.path.exists("product_links.csv"):
     df = pd.DataFrame(links, columns=['Product Links'])
-    df.to_csv("product_data.csv", index=False)
+    df.to_csv("product_links.csv", index=False)
+
+process_products(driver)
+
+# Convert the list of dictionaries into a dataframe, printing top 5 items for checking
+df = pd.DataFrame(products_data)
+print(df.head(20))
+df.to_csv('product_data.csv', index=False)
+
+driver.quit()
