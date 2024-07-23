@@ -91,7 +91,7 @@ def scrape_page(driver):
     
 def handle_survey():
     try:
-        # Verifica se o botão "no thanks" está presente
+        # If survey is noticed then click the no button, else, continue
         no_thanks_button = WebDriverWait(driver, 5).until(
             EC.presence_of_element_located((By.ID, "survey_invite_no"))
         )
@@ -116,37 +116,43 @@ def process_product(driver:webdriver, link:str):
     global products_data, all_headers
     driver.get(link) #Go to the object's page
     driver.implicitly_wait(20) #Wait the page to load
+    
     handle_survey()
+#-----------------------------------Objects that are not in the specs-------------------------------------
     try:
+        #Get name
         product_name_element = WebDriverWait(driver, 20).until(
             EC.presence_of_element_located((By.TAG_NAME, "h1"))
         )
         product_name = product_name_element.text
     except Exception as e: print("Some error, ", e)
-    
+    #If product is a package, it has other format and we don't want this product
     if "Package" in product_name: return
     
-    product_info = {'Link': link, 'Name' : product_name} #append its link in the dictionary
+    product_info = {'Link': link, 'Name' : product_name} #append its link and name in the dictionary
     
     # Get price
     try:
-        price_div = driver.find_element(By.CLASS_NAME, 'priceView-hero-price.priceView-customer-price')
+        driver.execute_script("window.scrollBy(0, 150)")           
+        price_div = driver.find_element(By.CLASS_NAME, class_product_price)
         price = price_div.find_element(By.TAG_NAME, 'span').text
     except:
+        #Some times the product has the price hidden (it needs to be added in your cart to show price, so that is what this is doing)
         try:
-            driver.execute_script("window.scrollBy(0, 150)")           
             driver.find_element(By.CLASS_NAME,"priceView-tap-to-view-price.priceView-tap-to-view-price-bold").click()
             try:
                 price_div = WebDriverWait(driver, 10).until(
                     EC.presence_of_element_located((By.CLASS_NAME, 'restricted-pricing__regular-price-section'))
                 )
                 price_div = price_div.find_element(By.CLASS_NAME, 'pricing-price')
-                price_div = price_div.find_element(By.CLASS_NAME, 'priceView-hero-price.priceView-customer-price')
+                price_div = price_div.find_element(By.CLASS_NAME, class_product_price)
                 price = price_div.find_element(By.TAG_NAME, 'span').text
             except Exception as e_text:
                 print("Couldn't get the price because ", e_text)
-            
+                
+            #I was having problem to click in the button, this is an atomic bomb, I know
             try:
+                #Uses Selenium to click
                 close_btn = WebDriverWait(driver, 20).until(
                     EC.element_to_be_clickable((By.CLASS_NAME, "c-close-icon.c-modal-close-icon"))
                 )
@@ -154,11 +160,12 @@ def process_product(driver:webdriver, link:str):
             except Exception as e:
                 print(f"Error clicking close button: {e}")
                 try:
-                    # Usar JavaScript para clicar no botão
+                    # Uses JS to click
                     driver.execute_script("arguments[0].click();", close_btn)
                 except Exception as js_e:
                     print(f"Error clicking close button with JS: {js_e}")
                     try:
+                        #Just refresh if everything fails
                         driver.refresh()
                     except Exception as all_e:
                         print("Error in all atempts to click in the close button: ", all_e)
@@ -168,16 +175,16 @@ def process_product(driver:webdriver, link:str):
         # Add information
         product_info['Price'] = price
     try:
-            # Espera até que o elemento de cinco estrelas esteja presente e obtenha o texto
+            # Wait until 5 star info is available
         five_star = WebDriverWait(driver, 30).until(
             EC.presence_of_element_located((By.CLASS_NAME, class_product_5_star))
         ).text
     
-        # Espera até que o elemento de quantidade de reviews esteja presente e obtenha o texto
+        # Wait until Review Amount info is available
         review_amount = WebDriverWait(driver, 30).until(
             EC.presence_of_element_located((By.CLASS_NAME, class_product_review_amount))
         ).text
-        
+        #Add info
         product_info['Five Star'] = five_star
         product_info['Review Amount'] = review_amount
     except Exception as e: print("Some error occurred while getting the Five Star / Review Amount Data:", e)
@@ -187,7 +194,7 @@ def process_product(driver:webdriver, link:str):
     except Exception as e: print(f"We couldn't click in the button, error: ", e)
     
     try:
-        # Wait until all elements with the specified class are located in the DOM
+        # Wait until all elements with the specified class (these are the the uls that contais the specs) are located in the DOM
         list_of_specs_ul = WebDriverWait(driver, 30).until(
             EC.presence_of_all_elements_located((By.CLASS_NAME, 'zebra-stripe-list.inline.m-none.p-none'))
         )
@@ -256,20 +263,20 @@ try:
           
     except:
         scrape_page(driver)
-        ##For test purposes, comment this section and delete the above sentence   
-        # while True:
-        #     '''
-        #     For each page, scrape the links until you find no more pages
-        #     '''
-        #     handle_survey()
-        #     scrape_page(driver)
+        #For test purposes, comment this section and delete the above sentence   
+        while True:
+            '''
+            For each page, scrape the links until you find no more pages
+            '''
+            handle_survey()
+            scrape_page(driver)
            
-            # if next_page: 
-            #     driver.get(next_page)
-            #     print(f"Navigating to next page: {next_page}")
+            if next_page: 
+                driver.get(next_page)
+                print(f"Navigating to next page: {next_page}")
 
-            # else: 
-            #     break
+            else: 
+                break
     
 except Exception as e:
     print("Not able to run the code, error: ", e)
